@@ -42,14 +42,12 @@ shared_tags_args = {
 # - Set up DNS (NS pointing to hosted zone) and webmaster@domain
 # 
 
-# CloudFrontCertificate = t.add_resource(certificatemanager.Certificate(
-#     'CloudFrontCertificate',
-#     DomainName=CONFIG['DOMAIN_NAME'],
-#     SubjectAlternativeNames=CONFIG['SUBJECT_ALTERNATIVE_NAMES'],
-#     Tags=Tags(**shared_tags_args),
-# ))
-# CloudFrontCertificateArn = Ref(CloudFrontCertificate)
-# CloudFrontCertificateArns = CONFIG['ELB_CERTIFICATE_ARNS']
+CloudFrontCertificate = t.add_resource(certificatemanager.Certificate(
+    'CloudFrontCertificate',
+    DomainName=CONFIG['DOMAIN_NAME'],
+    SubjectAlternativeNames=CONFIG.get('SUBJECT_ALTERNATIVE_NAMES') or [],
+    Tags=Tags(**shared_tags_args),
+))
 
 
 ###
@@ -102,18 +100,16 @@ CloudfrontDistribution = t.add_resource(cloudfront.Distribution(
                 DomainName=GetAtt(StaticHostingPublicBucket, 'DomainName'),
                 S3OriginConfig=cloudfront.S3Origin())
         ],
+        ViewerCertificate=cloudfront.ViewerCertificate(
+            AcmCertificateArn=Ref(CloudFrontCertificate),
+            SslSupportMethod='sni-only',
+        ),
         DefaultCacheBehavior=cloudfront.DefaultCacheBehavior(
             TargetOriginId="Origin 1",
             ForwardedValues=cloudfront.ForwardedValues(
                 QueryString=False
             ),
-            ViewerProtocolPolicy="allow-all",
-            # ViewerCertificate=cloudfront.ViewerCertificate(
-            #     AcmCertificateArn=Ref(CloudFrontCertificate),
-            #     CloudFrontDefaultCertificate=True,
-            #     # MinimumProtocolVersion=,  TODO
-            #     # SslSupportMethod=,
-            # )
+            ViewerProtocolPolicy="redirect-to-https",
         ),
         DefaultRootObject='index.html',
         Enabled=True,
