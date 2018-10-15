@@ -95,6 +95,7 @@ StaticHostingPublicBucket = t.add_resource(s3.Bucket(
 CloudfrontDistribution = t.add_resource(cloudfront.Distribution(
     "CloudfrontDistribution",
     DistributionConfig=cloudfront.DistributionConfig(
+        Aliases=[CONFIG['DOMAIN_NAME']],
         Origins=[
             cloudfront.Origin(
                 Id="Origin 1", 
@@ -141,6 +142,15 @@ t.add_resource(route53.RecordSetGroup(
             'HostedZoneAliasToCloudFront',
             Name=f'{CONFIG["DOMAIN_NAME"]}.',
             Type='A',
+            AliasTarget=route53.AliasTarget(
+                HostedZoneId='Z2FDTNDATAQYW2',  # CloudFront HostedZoneId magic string
+                DNSName=GetAtt(CloudfrontDistribution, 'DomainName'),
+            )
+        ),
+        route53.RecordSet(
+            'HostedZoneAliasToCloudFrontIpv6',
+            Name=f'{CONFIG["DOMAIN_NAME"]}.',
+            Type='AAAA',
             AliasTarget=route53.AliasTarget(
                 HostedZoneId='Z2FDTNDATAQYW2',  # CloudFront HostedZoneId magic string
                 DNSName=GetAtt(CloudfrontDistribution, 'DomainName'),
