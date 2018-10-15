@@ -1,0 +1,4 @@
+
+boto3==1.9.23
+PyYAML==3.13
+troposphere==2.3.3

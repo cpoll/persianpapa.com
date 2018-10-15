@@ -1,0 +1,5 @@
+config:
+    STACK_NAME: 'persianpapa-dot-com'
+    AWS_REGION_NAME: 'us-east-1'
+    CF_TEMPLATE_BUCKET: 'cloudformation-templates-h2vf91g7'
+    DOMAIN_NAME: 'persianpapa.com'
