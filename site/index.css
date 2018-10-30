@@ -9,6 +9,13 @@ p {
     margin: 0px;
 }
 
+.stats {
+    width:100%;
+    text-align: center; 
+    font-size: 40px;
+    margin: 0px;
+}
+
 img {
     width:100%;
 }
