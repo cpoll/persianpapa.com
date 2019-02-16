@@ -37,10 +37,10 @@ shared_tags_args = {
 #
 # Furthermore, DNS validation is not supported (only email validation)
 #
-# Workaround: 
+# Workaround:
 # - Run CloudFormation with this commented out the first time
 # - Set up DNS (NS pointing to hosted zone) and webmaster@domain
-# 
+#
 
 CloudFrontCertificate = t.add_resource(certificatemanager.Certificate(
     'CloudFrontCertificate',
@@ -49,6 +49,15 @@ CloudFrontCertificate = t.add_resource(certificatemanager.Certificate(
     Tags=Tags(**shared_tags_args),
 ))
 
+###
+# CloudFront OriginAccessIdentity
+###
+OriginAccessIdentity = t.add_resource(cloudfront.CloudFrontOriginAccessIdentity(
+    'OriginAccessIdentity',
+    CloudFrontOriginAccessIdentityConfig=cloudfront.CloudFrontOriginAccessIdentityConfig(
+        Comment=f'{CONFIG["STACK_NAME"]}'
+    )
+))
 
 ###
 # S3 Bucket
@@ -57,7 +66,7 @@ StaticHostingPublicBucketName = f'{CONFIG["DOMAIN_NAME"]}'
 StaticHostingPublicBucket = t.add_resource(s3.Bucket(
     'StaticHostingPublicBucket',
     BucketName=StaticHostingPublicBucketName,
-    # DeletionPolicy='Retain',
+    DeletionPolicy='Retain',
     # LoggingConfiguration=s3.LoggingConfiguration(
     #     LogFilePrefix='s3-server-access-logs/'
     # ),
@@ -67,25 +76,28 @@ StaticHostingPublicBucket = t.add_resource(s3.Bucket(
     ),
     Tags=Tags(**shared_tags_args),
 ))
-# t.add_resource(s3.BucketPolicy(
-#     'StaticHostingPublicBucketPolicy',
-#     Bucket=Ref(StaticHostingPublicBucket),
-#     PolicyDocument={
-#         "Statement": [
-#             {
-#                 "Action": "s3:*",
-#                 "Effect": "Allow",
-#                 "Resource": [
-#                     Join("", ["arn:aws:s3:::", Ref(StaticHostingPublicBucket), "/*"]),
-#                     Join("", ["arn:aws:s3:::", Ref(StaticHostingPublicBucket)]),
-#                 ],
-#                 "Principal": {
-#                     "AWS": "*"
-#                 },
-#             }
-#         ]
-#     },
-# ))
+t.add_resource(s3.BucketPolicy(
+    'StaticHostingPublicBucketPolicy',
+    Bucket=Ref(StaticHostingPublicBucket),
+    PolicyDocument={
+        "Statement": [
+            {
+                "Action": "s3:*",
+                "Effect": "Allow",
+                "Resource": [
+                    Join("", ["arn:aws:s3:::", Ref(StaticHostingPublicBucket), "/*"]),
+                    Join("", ["arn:aws:s3:::", Ref(StaticHostingPublicBucket)]),
+                ],
+                "Principal": {
+                    "AWS": Join(" ", [
+                        "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity",
+                        Ref(OriginAccessIdentity)
+                    ])
+                },
+            }
+        ]
+    },
+))
 
 ###
 # Cloudfront Distribution
@@ -96,9 +108,15 @@ CloudfrontDistribution = t.add_resource(cloudfront.Distribution(
         Aliases=[CONFIG['DOMAIN_NAME']],
         Origins=[
             cloudfront.Origin(
-                Id="Origin 1", 
+                Id="Origin 1",
                 DomainName=GetAtt(StaticHostingPublicBucket, 'DomainName'),
-                S3OriginConfig=cloudfront.S3Origin())
+                S3OriginConfig=cloudfront.S3OriginConfig(
+                    OriginAccessIdentity=Join("", [
+                        "origin-access-identity/cloudfront/",
+                        Ref(OriginAccessIdentity)
+                    ])
+                )
+            )
         ],
         ViewerCertificate=cloudfront.ViewerCertificate(
             AcmCertificateArn=Ref(CloudFrontCertificate),
