@@ -70,9 +70,13 @@ StaticHostingPublicBucket = t.add_resource(s3.Bucket(
     # LoggingConfiguration=s3.LoggingConfiguration(
     #     LogFilePrefix='s3-server-access-logs/'
     # ),
-    AccessControl="PublicRead",  # TODO: LogDeliveryWrite
+    AccessControl="PublicRead",
     VersioningConfiguration=s3.VersioningConfiguration(
         Status='Enabled'
+    ),
+    WebsiteConfiguration=s3.WebsiteConfiguration(
+        ErrorDocument='error.html',
+        IndexDocument='index.html'
     ),
     Tags=Tags(**shared_tags_args),
 ))
@@ -80,23 +84,20 @@ t.add_resource(s3.BucketPolicy(
     'StaticHostingPublicBucketPolicy',
     Bucket=Ref(StaticHostingPublicBucket),
     PolicyDocument={
+        "Version": "2012-10-17",
         "Statement": [
             {
-                "Action": "s3:*",
-                "Effect": "Allow",
+                "Sid": "PublicRead",
+                "Action": ["s3:GetObject"],
+                "Effect":"Allow",
                 "Resource": [
                     Join("", ["arn:aws:s3:::", Ref(StaticHostingPublicBucket), "/*"]),
                     Join("", ["arn:aws:s3:::", Ref(StaticHostingPublicBucket)]),
                 ],
-                "Principal": {
-                    "AWS": Join(" ", [
-                        "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity",
-                        Ref(OriginAccessIdentity)
-                    ])
-                },
+                "Principal": "*",
             }
         ]
-    },
+    }
 ))
 
 ###
@@ -135,6 +136,7 @@ CloudfrontDistribution = t.add_resource(cloudfront.Distribution(
     ),
     Tags=Tags(**shared_tags_args)
 ))
+
 
 
 ###
