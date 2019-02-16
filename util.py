@@ -90,3 +90,6 @@ def create_or_update_stack(stack_name, template, stack_policy, aws_region_name,
                                                             timestamp, template)
         response = cloudformation_client.create_stack(**stack_params)
         print(response)
+
+    else:
+        print("Aborting")

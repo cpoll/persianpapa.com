@@ -18,7 +18,7 @@ CONFIG = yaml.load(open(stack_config_file), Loader=yaml.Loader)['config']
 # Initialize template
 ###
 t = Template()
-t.add_version('2010-09-09')
+t.set_version('2010-09-09')
 
 ###
 # Shared Tags
@@ -52,12 +52,12 @@ CloudFrontCertificate = t.add_resource(certificatemanager.Certificate(
 ###
 # CloudFront OriginAccessIdentity
 ###
-OriginAccessIdentity = t.add_resource(cloudfront.CloudFrontOriginAccessIdentity(
-    'OriginAccessIdentity',
-    CloudFrontOriginAccessIdentityConfig=cloudfront.CloudFrontOriginAccessIdentityConfig(
-        Comment=f'{CONFIG["STACK_NAME"]}'
-    )
-))
+# OriginAccessIdentity = t.add_resource(cloudfront.CloudFrontOriginAccessIdentity(
+#     'OriginAccessIdentity',
+#     CloudFrontOriginAccessIdentityConfig=cloudfront.CloudFrontOriginAccessIdentityConfig(
+#         Comment=f'{CONFIG["STACK_NAME"]}'
+#     )
+# ))
 
 ###
 # S3 Bucket
@@ -74,6 +74,8 @@ StaticHostingPublicBucket = t.add_resource(s3.Bucket(
     VersioningConfiguration=s3.VersioningConfiguration(
         Status='Enabled'
     ),
+
+    # Enable website configuration to handle various redirect behaviours (e.g. /a -> /a/index.html)
     WebsiteConfiguration=s3.WebsiteConfiguration(
         ErrorDocument='error.html',
         IndexDocument='index.html'
@@ -110,12 +112,15 @@ CloudfrontDistribution = t.add_resource(cloudfront.Distribution(
         Origins=[
             cloudfront.Origin(
                 Id="Origin 1",
-                DomainName=GetAtt(StaticHostingPublicBucket, 'DomainName'),
-                S3OriginConfig=cloudfront.S3OriginConfig(
-                    OriginAccessIdentity=Join("", [
-                        "origin-access-identity/cloudfront/",
-                        Ref(OriginAccessIdentity)
-                    ])
+
+                # turn `http://mybucket.s3-website-us-east-1.amazonaws.com/`y
+                # into `mybucket.s3-website-us-east-1.amazonaws.com`
+                DomainName=Select(2, Split("/", GetAtt(StaticHostingPublicBucket, 'WebsiteURL'))),
+
+                # S3 website hosting only serves on 80
+                CustomOriginConfig=cloudfront.CustomOriginConfig(
+                    HTTPPort=80,
+                    OriginProtocolPolicy='http-only',
                 )
             )
         ],
@@ -129,14 +134,20 @@ CloudfrontDistribution = t.add_resource(cloudfront.Distribution(
                 QueryString=False
             ),
             ViewerProtocolPolicy="redirect-to-https",
+            AllowedMethods=["GET", "HEAD"],
+            DefaultTTL=86400  # one day
         ),
         DefaultRootObject='index.html',
         Enabled=True,
-        HttpVersion='http2'
+        HttpVersion='http2',
+        # Logging=cloudfront.Logging(
+        #     Bucket=GetAtt(CloudfrontLogBucket, 'DomainName'),
+        #     IncludeCookies=False
+        # ),
+        PriceClass='PriceClass_100',
     ),
     Tags=Tags(**shared_tags_args)
 ))
-
 
 
 ###
