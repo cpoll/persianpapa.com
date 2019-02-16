@@ -1,0 +1,8 @@
+---
+
+redirects:
+  - key: 'test/test-redirect-source/index.html'
+    destination: '{BASE_PATH}/test/test-redirect-destination/'
+
+  - key: 'test/test-redirect-source-2/index.html'
+    destination: '{BASE_PATH}/test/test-redirect-destination-2/'
